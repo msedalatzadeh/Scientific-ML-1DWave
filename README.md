@@ -31,7 +31,7 @@ where $\Delta x$ is the spatial resolution.
 
 ## PyTorch Implementation
 
-The following Python code demonstrates how to model and solve this optimization problem using PyTorch:
+The Python file `main.py` demonstrates how to model and solve this optimization problem using PyTorch.
 
 To run this project, follow these steps:
 
@@ -41,7 +41,7 @@ To run this project, follow these steps:
     cd scientific-ML-1DWave
     ```
 
-2. Ensure you have Python and PyTorch installed. Install additional dependencies if needed:
+2. Ensure you have matplotlib and PyTorch installed. Install additional dependencies if needed:
     ```bash
     pip install torch matplotlib
     ```
