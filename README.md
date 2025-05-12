@@ -56,6 +56,7 @@ To run this project, follow these steps:
 ## Simulation Results
 ![](results/loss_and_r_over_epochs.png)
 
-![](results/wave_propagation.png)
-
 ![](results/control_input.png)
+
+![](results/wave_propagation.png)
+![](results/wave_propagation_surrogate.png)

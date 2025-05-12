@@ -1,7 +1,7 @@
 import torch
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
 # Parameters
 L = 1.0          # Length of the domain
@@ -31,8 +31,13 @@ u_desired = torch.zeros((nt, nx), device=device)
 # Control input (can be optimized or predefined)
 u_in = torch.ones(nt, device=device, requires_grad=True)
 
-# Actuator location (to be optimized)
+# PyTorch learning parameters
 r = torch.tensor(0.2, device=device, requires_grad=True)
-num_epochs = 100
-learning_rate = 0.5
+num_epochs = 200
+learning_rate = 0.4
 momentum=0.9
+
+num_samples_for_surrogate = 100
+num_epochs_for_surrogate = 200
+learning_rate_for_surrogate = 0.6
+momentum_for_surrogate = 0.9
