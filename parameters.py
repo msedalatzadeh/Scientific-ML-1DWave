@@ -38,7 +38,7 @@ num_epochs = 100
 learning_rate = 0.01
 momentum=0.9
 
-num_samples_for_surrogate = 250
-num_epochs_for_surrogate = 200
+num_samples_for_surrogate = 100
+num_epochs_for_surrogate = 500
 learning_rate_for_surrogate = 0.9
 momentum_for_surrogate = 0.9

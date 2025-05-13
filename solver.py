@@ -56,9 +56,9 @@ class WaveSurrogateModel(torch.nn.Module):
         frequencies = torch.linspace(1, 10, num_samples, device=device)  # Frequencies from 1 to 10
         time = torch.linspace(0, T, nt, device=device)  # Time vector
         space = torch.linspace(0, L, nx, device=device)  # Space vector
-        u_in_samples = torch.stack([torch.sin(2 * torch.pi * f * time) for f in frequencies])
-        u0_samples = torch.stack([torch.sin(2 * torch.pi * f * space) for f in frequencies])
-        v0_samples = torch.stack([torch.cos(2 * torch.pi * f * space) for f in frequencies])
+        u_in_samples = torch.stack([torch.sin(torch.pi * f * time) for f in frequencies])
+        u0_samples = torch.stack([torch.sin(torch.pi * f * space) for f in frequencies])
+        v0_samples = torch.stack([torch.cos(torch.pi * f * space) for f in frequencies])
         wave_solutions = torch.stack([simulate_wave(r_samples[i], u_in_samples[i], u0_samples[i], v0_samples[i]) for i in range(num_samples)])
 
         # Define loss function and optimizer
