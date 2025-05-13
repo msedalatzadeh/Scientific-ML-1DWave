@@ -2,7 +2,7 @@ import torch
 from parameters import *
 
 # Simulation function
-def simulate_wave(r, u_in):
+def simulate_wave(r, u_in, u0, v0):
     u = torch.zeros((nt, nx), device=device)
     u[0] = u0
     u[1] = u0 + dt * v0
@@ -22,28 +22,44 @@ def simulate_wave(r, u_in):
 class WaveSurrogateModel(torch.nn.Module):
     def __init__(self, nx, nt):
         super(WaveSurrogateModel, self).__init__()
-        self.fc1 = torch.nn.Linear(nt + 1, 128)  # Input layer (r + u_in)
-        self.fc2 = torch.nn.Linear(128, 256)  # Hidden layer
-        self.fc3 = torch.nn.Linear(256, nt * nx)  # Hidden layer
+        N = 128
+        M = 256
+        self.fc1 = torch.nn.Linear(2*nx, N)  # Input layer (r + u_in)
+        self.fc2 = torch.nn.Linear(nt + 1, N)  # Hidden layer
+        self.fc2n = torch.nn.Linear(N, N)  # Hidden layer
+        self.fc3 = torch.nn.Linear(2*N, M)  # Hidden layer
+        self.fc4 = torch.nn.Linear(M, nt * nx)  # Hidden layer
 
-    def forward(self, r, u_in):
-        # Combine r and u_in into a single input tensor
-        r_expanded = r.unsqueeze(0)  # Expand r to match the time dimension
-        r_u_in = torch.cat([r_expanded, u_in], dim=0)  # Combine along feature dimension
-        x = torch.relu(self.fc1(r_u_in))  # Pass through first dense layer
-        x = torch.relu(self.fc2(x))  # Pass through second dense layer
-        x = self.fc3(x)  # Output layer
-        x = x.view(nt, nx)  # Reshape to (nt, nx)
+    def forward(self, r, u_in, u0, v0):
+        # Concatenate u0 and v0, and pass through a dense layer
+        uv_combined = torch.cat([u0, v0], dim=0)
+        uv_out = self.fc1(uv_combined)
+
+        # Concatenate u_in and r, and pass through a dense layer
+        r_expanded = r.unsqueeze(0)  # Expand r to match u_in dimensions
+        ur_combined = torch.cat([r_expanded, u_in], dim=0)
+        ur_out = torch.tanh(self.fc2(ur_combined))
+        ur_out = self.fc2n(ur_out)
+
+        # Sum the outputs of the two layers and pass through another dense layer
+        combined_out = torch.tanh(self.fc3(torch.cat([uv_out, ur_out])))
+        x = self.fc4(combined_out)
+
+        # Reshape to (nt, nx)
+        x = x.view(nt, nx)
         return x
 
-    
     # Function to train the surrogate model
     def train_on_synthetic_data(self, num_samples, num_epochs, learning_rate):
         # Generate training data using simulate_wave
         r_samples = torch.rand(num_samples, device=device) * L
-        u_in_samples = torch.rand((num_samples, nt), device=device) * 10 - 5  # Scale to [-1, 1]
-        u_in_samples = torch.nn.functional.avg_pool1d(u_in_samples.unsqueeze(1), kernel_size=5, stride=1, padding=2).squeeze(1)  # Smooth over time
-        wave_solutions = torch.stack([simulate_wave(r_samples[i], u_in_samples[i]) for i in range(num_samples)])
+        frequencies = torch.linspace(1, 10, num_samples, device=device)  # Frequencies from 1 to 10
+        time = torch.linspace(0, T, nt, device=device)  # Time vector
+        space = torch.linspace(0, L, nx, device=device)  # Space vector
+        u_in_samples = torch.stack([torch.sin(2 * torch.pi * f * time) for f in frequencies])
+        u0_samples = torch.stack([torch.sin(2 * torch.pi * f * space) for f in frequencies])
+        v0_samples = torch.stack([torch.cos(2 * torch.pi * f * space) for f in frequencies])
+        wave_solutions = torch.stack([simulate_wave(r_samples[i], u_in_samples[i], u0_samples[i], v0_samples[i]) for i in range(num_samples)])
 
         # Define loss function and optimizer
         criterion = torch.nn.MSELoss()
@@ -56,7 +72,7 @@ class WaveSurrogateModel(torch.nn.Module):
             optimizer.zero_grad()
 
             # Forward pass
-            predictions = torch.stack([self(r_samples[i], u_in_samples[i]) for i in range(num_samples)])
+            predictions = torch.stack([self(r_samples[i], u_in_samples[i], u0_samples[i], v0_samples[i]) for i in range(num_samples)])
             loss = criterion(predictions, wave_solutions)
 
             # Backward pass and optimization

@@ -4,20 +4,28 @@ import matplotlib.pyplot as plt
 from parameters import *
 from solver import *
 
+surrogate_model = WaveSurrogateModel(nx, nt).to(device)
+# Check if a saved model exists, load it; otherwise, train and save the model
+model_path = 'results/surrogate_model.pth'
+try:
+    surrogate_model.load_state_dict(torch.load(model_path))
+    surrogate_model.eval()
+    print(f"Loaded surrogate model from {model_path}")
+except FileNotFoundError:
+    print("No saved surrogate model found. Training a new model...")
+    surrogate_model.train_on_synthetic_data(num_samples=num_samples_for_surrogate, num_epochs=num_epochs_for_surrogate, learning_rate=learning_rate_for_surrogate)
+    torch.save(surrogate_model.state_dict(), model_path)
+    print(f"Surrogate model saved to {model_path}")
+
 # Optimization settings
 optimizer = torch.optim.AdamW([r, u_in], lr=learning_rate)
-
 # Initialize lists to store epoch data
 epoch_data = []
-
-surrogate_model = WaveSurrogateModel(nx, nt).to(device)
-surrogate_model.train_on_synthetic_data(num_samples=num_samples_for_surrogate, num_epochs=num_epochs_for_surrogate, learning_rate=learning_rate_for_surrogate)
-
 # Training loop
 print('Starting Control and Actuator Location Optimization...')
 for epoch in range(num_epochs):
     optimizer.zero_grad()
-    u = surrogate_model(r, u_in)
+    u = surrogate_model(r, u_in, u0, v0)
     state_cost = torch.sum((u - u_desired) ** 2) * dx * dt
     control_cost = gamma * torch.sum(u_in ** 2) * dt
     loss = state_cost + control_cost
@@ -30,7 +38,6 @@ for epoch in range(num_epochs):
 
     # Save epoch data
     epoch_data.append((epoch + 1, loss.item(), r.item()))
-
 
     if (epoch + 1) % 10 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}, r: {r.item():.4f}')
@@ -52,6 +59,8 @@ ax1.grid()
 ax2 = ax1.twinx()
 ax2.plot(epochs, r_values, 'r-', label='r (Optimal Location)')
 ax2.set_ylabel('r (Optimal Location)', color='r')
+ax2.set_ylim(0, L)
+ax2.set_xlim(0, num_epochs)
 ax2.tick_params(axis='y', labelcolor='r')
 
 # Add title and save the figure
@@ -61,7 +70,7 @@ plt.savefig('results/loss_and_r_over_epochs.png', dpi=300)
 plt.close()
 
 # Save final displacement plot
-u_final = simulate_wave(r, u_in).detach().cpu().numpy()
+u_final = simulate_wave(r, u_in, u0, v0).detach().cpu().numpy()
 plt.figure(figsize=(8, 4))
 plt.imshow(u_final.T, extent=[0, T, 0, L], aspect='auto', origin='lower')
 plt.colorbar(label='Displacement')
@@ -72,7 +81,7 @@ plt.savefig('results/wave_propagation.png', dpi=300)
 plt.close()
 
 # Save final displacement plot using the surrogate model
-u_final = surrogate_model(r, u_in).detach().cpu().numpy()
+u_final = surrogate_model(r, u_in, u0, v0).detach().cpu().numpy()
 plt.figure(figsize=(8, 4))
 plt.imshow(u_final.T, extent=[0, T, 0, L], aspect='auto', origin='lower')
 plt.colorbar(label='Displacement')

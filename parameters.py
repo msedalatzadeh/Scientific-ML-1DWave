@@ -11,8 +11,9 @@ nx = 100         # Number of spatial points
 nt = 500         # Number of time steps
 dx = L / (nx - 1)
 dt = T / nt
-gamma = 0.0001     # Control effort weight
+gamma = 0.1     # Control effort weight
 delta = 50 
+damping = 0.1  # Damping factor
 
 # Stability condition
 assert c * dt / dx <= 1, "Stability condition violated!"
@@ -29,15 +30,15 @@ v0 = torch.zeros(nx, device=device)
 u_desired = torch.zeros((nt, nx), device=device)
 
 # Control input (can be optimized or predefined)
-u_in = torch.ones(nt, device=device, requires_grad=True)
+u_in = torch.full((nt,), -1.0, device=device, requires_grad=True)
 
 # PyTorch learning parameters
-r = torch.tensor(0.2, device=device, requires_grad=True)
-num_epochs = 200
-learning_rate = 0.4
+r = torch.tensor(0.5, device=device, requires_grad=True)
+num_epochs = 100
+learning_rate = 0.01
 momentum=0.9
 
-num_samples_for_surrogate = 100
+num_samples_for_surrogate = 250
 num_epochs_for_surrogate = 200
-learning_rate_for_surrogate = 0.6
+learning_rate_for_surrogate = 0.9
 momentum_for_surrogate = 0.9
