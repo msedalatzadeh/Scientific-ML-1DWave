@@ -82,3 +82,72 @@ class WaveSurrogateModel(torch.nn.Module):
                 print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
         print("Training complete.")
+
+class WaveSurrogateCauchyModel(torch.nn.Module):
+    def __init__(self, nx, nt):
+        super(WaveSurrogateCauchyModel, self).__init__()
+        N = nt + nx
+        self.fc1 = torch.nn.Linear(2*nx, nx * nt)
+        self.fc2 = torch.nn.Linear(nt + 1, nx * nt)
+        self.fc3 = torch.nn.Linear(nt, 4*N)
+        self.fc4 = torch.nn.Linear(4*N, nt * nx)
+
+    def forward(self, r, u_in, u0, v0):
+        # We implement cauchy formula: u(t) = T(t)[u0, v0] + \int_0^t T(t-tau)B(r)u_in(tau)dtau
+        uv_combined = torch.cat([u0, v0], dim=0)
+        semigroup_term = self.fc1(uv_combined) # --> T(t)[u0, v0]
+        semigroup_term = semigroup_term.view(nx, nt)
+        
+        r_expanded = r.unsqueeze(0)
+        ur_combined = torch.cat([r_expanded, u_in], dim=0)
+        B_ru = torch.tanh(self.fc2(ur_combined)) # --> B(r)u_in(tau)
+        B_ru = B_ru.view(nx, nt)
+
+        B_ru_reshaped = B_ru.view(1, nx, nt)  # shape: [nx, 1, nt]
+        semigroup_kernel = semigroup_term.flip(-1).view(nx, 1, nt)  # [nx, 1, nt] = one kernel per x
+        convolution_term = torch.nn.functional.conv1d(
+            B_ru_reshaped,
+            semigroup_kernel,
+            padding=nt - 1,
+            groups=nx
+        )  # shape: [1, nx, 2*nt - 1]
+        convolution_term = convolution_term[0, :, :nt]  # truncate to [nx, nt]
+
+        overall_evolution = semigroup_term + convolution_term
+
+        return overall_evolution.view(nt, nx)
+
+    # Function to train the surrogate model
+    def train_on_synthetic_data(self, num_samples, num_epochs, learning_rate):
+        # Generate training data using simulate_wave
+        r_samples = torch.rand(num_samples, device=device) * L
+        frequencies = torch.linspace(1, 10, num_samples, device=device)  # Frequencies from 1 to 10
+        time = torch.linspace(0, T, nt, device=device)  # Time vector
+        space = torch.linspace(0, L, nx, device=device)  # Space vector
+        u_in_samples = torch.stack([torch.sin(torch.pi * f * time) for f in frequencies])
+        u0_samples = torch.stack([torch.sin(torch.pi * f * space) for f in frequencies])
+        v0_samples = torch.stack([torch.cos(torch.pi * f * space) for f in frequencies])
+        wave_solutions = torch.stack([simulate_wave(r_samples[i], u_in_samples[i], u0_samples[i], v0_samples[i]) for i in range(num_samples)])
+
+        # Define loss function and optimizer
+        criterion = torch.nn.MSELoss()
+        optimizer = torch.optim.AdamW(self.parameters(), lr=learning_rate)
+
+        print("Starting surrogate model training...")
+        # Training loop
+        for epoch in range(num_epochs):
+            self.train()
+            optimizer.zero_grad()
+
+            # Forward pass
+            predictions = torch.stack([self(r_samples[i], u_in_samples[i], u0_samples[i], v0_samples[i]) for i in range(num_samples)])
+            loss = criterion(predictions, wave_solutions)
+
+            # Backward pass and optimization
+            loss.backward()
+            optimizer.step()
+
+            if (epoch + 1) % 5 == 0:
+                print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+
+        print("Training complete.")
