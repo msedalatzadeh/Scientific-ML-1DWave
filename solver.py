@@ -13,8 +13,8 @@ def simulate_wave(r, u_in, u0, v0):
 
     for n in range(1, nt - 1):
         u[n + 1, 1:-1] = (2 * u[n, 1:-1] - u[n - 1, 1:-1] +
-                          (c * dt / dx) ** 2 * (u[n, 2:] - 2 * u[n, 1:-1] + u[n, :-2]) +
-                          dt ** 2 * u_in[n] * actuator[1:-1])
+                        (c * dt / dx) ** 2 * (u[n, 2:] - 2 * u[n, 1:-1] + u[n, :-2]) +
+                        dt ** 2 * u_in[n] * actuator[1:-1])
     return u
 
 
@@ -22,13 +22,12 @@ def simulate_wave(r, u_in, u0, v0):
 class WaveSurrogateModel(torch.nn.Module):
     def __init__(self, nx, nt):
         super(WaveSurrogateModel, self).__init__()
-        N = 128
-        M = 256
+        N = nt + nx
         self.fc1 = torch.nn.Linear(2*nx, N)  # Input layer (r + u_in)
         self.fc2 = torch.nn.Linear(nt + 1, N)  # Hidden layer
         self.fc2n = torch.nn.Linear(N, N)  # Hidden layer
-        self.fc3 = torch.nn.Linear(2*N, M)  # Hidden layer
-        self.fc4 = torch.nn.Linear(M, nt * nx)  # Hidden layer
+        self.fc3 = torch.nn.Linear(2*N, N)  # Hidden layer
+        self.fc4 = torch.nn.Linear(N, nt * nx)  # Hidden layer
 
     def forward(self, r, u_in, u0, v0):
         # Concatenate u0 and v0, and pass through a dense layer
@@ -42,7 +41,7 @@ class WaveSurrogateModel(torch.nn.Module):
         ur_out = self.fc2n(ur_out)
 
         # Sum the outputs of the two layers and pass through another dense layer
-        combined_out = torch.tanh(self.fc3(torch.cat([uv_out, ur_out])))
+        combined_out = torch.sin(self.fc3(torch.cat([uv_out, ur_out])))
         x = self.fc4(combined_out)
 
         # Reshape to (nt, nx)

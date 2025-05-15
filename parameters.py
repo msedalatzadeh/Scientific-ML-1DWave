@@ -5,10 +5,10 @@ device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
 # Parameters
 L = 1.0          # Length of the domain
-T = 5.0          # Total time
+T = 2.0          # Total time
 c = 1.0          # Wave speed
 nx = 100         # Number of spatial points
-nt = 500         # Number of time steps
+nt = 200         # Number of time steps
 dx = L / (nx - 1)
 dt = T / nt
 gamma = 0.1     # Control effort weight
@@ -38,7 +38,7 @@ num_epochs = 100
 learning_rate = 0.01
 momentum=0.9
 
-num_samples_for_surrogate = 100
-num_epochs_for_surrogate = 500
+num_samples_for_surrogate = 200
+num_epochs_for_surrogate = 200
 learning_rate_for_surrogate = 0.9
 momentum_for_surrogate = 0.9
