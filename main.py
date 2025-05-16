@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from parameters import *
 from solver import *
 
-surrogate_model = WaveSurrogateModel(nx, nt).to(device)
+surrogate_model = WaveSurrogateFourierModel(nx, nt, nfourier).to(device)
 # Check if a saved model exists, load it; otherwise, train and save the model
 model_path = 'results/surrogate_model.pth'
 try:
@@ -53,6 +53,7 @@ ax1.plot(epochs, losses, 'b-', label='Loss')
 ax1.set_xlabel('Epoch')
 ax1.set_ylabel('Loss', color='b')
 ax1.tick_params(axis='y', labelcolor='b')
+ax1.set_ylim(0, 1000)
 ax1.grid()
 
 # Plot r on the right y-axis
@@ -76,7 +77,7 @@ plt.imshow(u_final.T, extent=[0, T, 0, L], aspect='auto', origin='lower')
 plt.colorbar(label='Displacement')
 plt.xlabel('Time')
 plt.ylabel('Position')
-plt.title('Wave Propagation Over Time')
+plt.title('Finite Difference Model under Optimal Control and Actuator Location')
 plt.savefig('results/wave_propagation.png', dpi=300)
 plt.close()
 
@@ -87,7 +88,7 @@ plt.imshow(u_final.T, extent=[0, T, 0, L], aspect='auto', origin='lower')
 plt.colorbar(label='Displacement')
 plt.xlabel('Time')
 plt.ylabel('Position')
-plt.title('Wave Propagation Over Time (Surrogate Model)')
+plt.title('Fourier Surrogate Model under Optimal Control and Actuator Location')
 plt.savefig('results/wave_propagation_surrogate.png', dpi=300)
 plt.close()
 
@@ -97,7 +98,7 @@ plt.plot(t.cpu().numpy(), u_in.detach().cpu().numpy(), label="Control Input (u_i
 plt.xlabel('Time')
 plt.ylabel('Control Input')
 plt.xlim(0, T)
-plt.title('Control Input Over Time')
+plt.title('Optimal Control Input Over Time')
 plt.legend()
 plt.grid()
 plt.savefig('results/control_input.png', dpi=300)

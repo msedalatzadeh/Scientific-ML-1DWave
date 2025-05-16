@@ -5,13 +5,13 @@ device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
 # Parameters
 L = 1.0          # Length of the domain
-T = 2.0          # Total time
+T = 1.0          # Total time
 c = 1.0          # Wave speed
 nx = 100         # Number of spatial points
-nt = 200         # Number of time steps
+nt = 300         # Number of time steps
 dx = L / (nx - 1)
 dt = T / nt
-gamma = 0.1     # Control effort weight
+gamma = 1     # Control effort weight
 delta = 50 
 damping = 0.1  # Damping factor
 
@@ -34,11 +34,12 @@ u_in = torch.full((nt,), -1.0, device=device, requires_grad=True)
 
 # PyTorch learning parameters
 r = torch.tensor(0.5, device=device, requires_grad=True)
-num_epochs = 100
-learning_rate = 0.01
+num_epochs = 300
+learning_rate = 0.9
 momentum=0.9
 
-num_samples_for_surrogate = 200
+num_samples_for_surrogate = 14
 num_epochs_for_surrogate = 200
-learning_rate_for_surrogate = 0.9
+learning_rate_for_surrogate = 0.3
 momentum_for_surrogate = 0.9
+nfourier = 10
